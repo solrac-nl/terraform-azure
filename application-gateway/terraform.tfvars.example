@@ -1,0 +1,61 @@
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+name                = "web-prod"
+location            = "westeurope"
+resource_group_name = "rg-web-prod"
+
+tags = {
+  environment = "prod"
+  managed_by  = "terraform"
+}
+
+# Existing Key Vault holding the PFX certificates
+key_vault_name                = "kv-shared-certs"
+key_vault_resource_group_name = "rg-shared-security"
+key_vault_auth_mode           = "rbac" # or "access_policy"
+
+sku_name            = "WAF_v2"
+private_frontend_ip = "10.10.0.10" # optional; remove to skip the private frontend
+
+backends = {
+  api = {
+    fqdns     = ["api-prod.azurewebsites.net"]
+    port      = 443
+    protocol  = "Https"
+    pick_host_name_from_backend_address = true
+    probe = {
+      path = "/health"
+    }
+  }
+
+  web = {
+    ip_addresses = ["10.10.1.4", "10.10.1.5"]
+    port         = 80
+    protocol     = "Http"
+    host_name    = "www.contoso.com"
+  }
+}
+
+frontends = {
+  api = {
+    backend          = "api"
+    priority         = 100
+    host_names       = ["api.contoso.com"]
+    certificate_name = "api-contoso-com" # certificate name in Key Vault
+  }
+
+  www = {
+    backend          = "web"
+    priority         = 200
+    host_names       = ["www.contoso.com", "contoso.com"]
+    certificate_name = "wildcard-contoso-com"
+  }
+
+  internal = {
+    backend                = "web"
+    priority               = 300
+    frontend_ip            = "private"
+    host_names             = ["intranet.contoso.com"]
+    certificate_name       = "wildcard-contoso-com"
+    redirect_http_to_https = false
+  }
+}
